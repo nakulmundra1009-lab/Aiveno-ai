@@ -1,0 +1,7 @@
+{
+  "name": "Aiveno - Your Personal Life Assistant",
+  "description": "A smart, friendly, and reliable personal life assistant for managing reminders, productivity, goals, and finances with an Indian context.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
