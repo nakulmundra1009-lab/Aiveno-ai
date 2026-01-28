@@ -1,10 +1,17 @@
 
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { AppState, Category } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { AppState, Category } from "../types.ts";
 
-const API_KEY = process.env.API_KEY || "";
+// Safe access to environment variables
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || "";
+  } catch (e) {
+    return "";
+  }
+};
 
-const addReminderSchema: FunctionDeclaration = {
+const addReminderSchema = {
   name: "add_reminder",
   description: "Adds a new reminder or task for the user.",
   parameters: {
@@ -18,7 +25,7 @@ const addReminderSchema: FunctionDeclaration = {
   }
 };
 
-const addExpenseSchema: FunctionDeclaration = {
+const addExpenseSchema = {
   name: "add_expense",
   description: "Records a money expenditure.",
   parameters: {
@@ -32,26 +39,22 @@ const addExpenseSchema: FunctionDeclaration = {
   }
 };
 
-const updateMemorySchema: FunctionDeclaration = {
+const updateMemorySchema = {
   name: "update_memory",
   description: "Saves a personal fact about the user for future reference.",
   parameters: {
     type: Type.OBJECT,
     properties: {
-      fact: { type: Type.STRING, description: "A snippet of information about the user (e.g., 'User likes green tea', 'User has a dog named Bruno')" }
+      fact: { type: Type.STRING, description: "A snippet of information about the user" }
     },
     required: ["fact"]
   }
 };
 
 export class AivenoService {
-  private ai: GoogleGenAI;
-  
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: API_KEY });
-  }
-
   async chat(message: string, appState: AppState, onAction: (action: any) => void) {
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    
     const memoryContext = `
       User Name: ${appState.memory.name}
       Key Facts: ${appState.memory.keyFacts.join(", ")}
@@ -61,7 +64,7 @@ export class AivenoService {
       - Important Docs: ${JSON.stringify(appState.documents)}
     `;
 
-    const response = await this.ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: message,
       config: {
@@ -69,7 +72,7 @@ export class AivenoService {
           You are Aiveno, a smart, friendly, and reliable personal life assistant for Indian users.
           Be caring, human-like, and practical. Help with reminders, planning, goals, expenses, and documents.
           Tone: Supportive, smart, and trustworthy.
-          Indian Context: Use INR (₹) and Indian date formats (DD/MM/YYYY) in text, but YYYY-MM-DD for storage.
+          Indian Context: Use INR (₹) and Indian date formats (DD/MM/YYYY) in text.
           Current User Context: ${memoryContext}
           
           If the user wants to set a reminder or log an expense, use the available tools.

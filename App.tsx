@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Category, Reminder, Expense, Document, UserMemory } from './types';
-import { aiveno } from './services/geminiService';
+import { AppState, Category, Reminder, Expense, Document } from './types.ts';
+import { aiveno } from './services/geminiService.ts';
 import { 
   Calendar, 
   Wallet, 
@@ -20,49 +20,41 @@ import {
 const AD_CONFIG = {
   PUBLISHER_ID: "ca-pub-6476313491240615",
   BANNER_SLOT_ID: "9232749226",
-  IS_DEV_MODE: false // Set to false to show your real ads
+  IS_DEV_MODE: false
 };
 
 // --- AD COMPONENTS ---
 
 const BannerAd: React.FC = () => {
   const adInited = useRef(false);
-  const [showSimulated, setShowSimulated] = useState(AD_CONFIG.IS_DEV_MODE);
 
   useEffect(() => {
     if (!AD_CONFIG.IS_DEV_MODE && !adInited.current) {
       const initAd = () => {
         try {
           // @ts-ignore
-          const adsbygoogle = window.adsbygoogle || [];
-          if (typeof adsbygoogle.push === 'function') {
+          const adsbygoogle = window.adsbygoogle;
+          if (adsbygoogle && typeof adsbygoogle.push === 'function') {
             adsbygoogle.push({});
             adInited.current = true;
-            console.log("Aiveno Monetization: Ad unit initialized successfully.");
           } else {
-            // Script not ready yet, retry in 500ms
-            setTimeout(initAd, 500);
+            setTimeout(initAd, 1000);
           }
         } catch (e) {
-          console.error("Aiveno AdSense Error:", e);
+          console.warn("Aiveno AdSense initialization deferred.");
         }
       };
-      
       initAd();
     }
   }, []);
 
-  if (showSimulated) {
+  if (AD_CONFIG.IS_DEV_MODE) {
     return (
       <div className="bg-slate-100 border-t border-slate-200 px-4 py-2 flex items-center justify-between shrink-0 h-[60px]">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold bg-amber-400 text-amber-900 px-1 rounded">AD</span>
-            <span className="text-xs font-bold text-slate-800">FinBank India</span>
-          </div>
-          <p className="text-[11px] text-slate-600 truncate max-w-[200px] font-medium">Loans @ 10.5% available now.</p>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold bg-amber-400 text-amber-900 px-1 rounded">AD</span>
+          <span className="text-xs font-bold text-slate-800">Mock Advertisement</span>
         </div>
-        <button className="bg-indigo-600 text-white text-[10px] px-3 py-1.5 rounded-lg font-bold shadow-sm">Details</button>
       </div>
     );
   }
@@ -93,10 +85,9 @@ const InterstitialAd: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-6 backdrop-blur-sm">
       <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300">
         <div className="relative h-64 bg-indigo-100 flex items-center justify-center">
-          <div className="absolute top-3 left-3 bg-white/80 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600">Sponsored</div>
           <button 
             onClick={timer === 0 ? onClose : undefined}
-            className={`absolute top-3 right-3 p-2 rounded-full transition-all ${timer === 0 ? 'bg-slate-200 text-slate-800 hover:bg-slate-300' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}
+            className={`absolute top-3 right-3 p-2 rounded-full transition-all ${timer === 0 ? 'bg-slate-200 text-slate-800' : 'bg-slate-100 text-slate-300'}`}
           >
             {timer > 0 ? <span className="text-xs font-bold px-1">{timer}</span> : <X size={20} />}
           </button>
@@ -104,23 +95,19 @@ const InterstitialAd: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div className="w-20 h-20 bg-indigo-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-xl">
               <Wallet className="text-white" size={40} />
             </div>
-            <h3 className="text-xl font-bold text-indigo-900">Aiveno Premium Finance</h3>
+            <h3 className="text-xl font-bold text-indigo-900">Aiveno Premium</h3>
           </div>
         </div>
         <div className="p-6 text-center space-y-4">
-          <h2 className="text-lg font-bold text-slate-800 leading-tight">Take Control of Your Indian Taxes with Expert Filing</h2>
-          <p className="text-sm text-slate-500 italic">"I saved ₹15,000 this year with Aiveno's partner!"</p>
-          <button className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
-            Check Eligibility Now
+          <h2 className="text-lg font-bold text-slate-800 leading-tight">Simplify your life with Aiveno.</h2>
+          <button onClick={onClose} className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg">
+            Dismiss Ad
           </button>
-          <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Advertisement</p>
         </div>
       </div>
     </div>
   );
 };
-
-// --- MAIN APP ---
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dash' | 'chat' | 'money' | 'docs'>('dash');
@@ -128,8 +115,13 @@ const App: React.FC = () => {
   const [adCooldown, setAdCooldown] = useState(0);
 
   const [appState, setAppState] = useState<AppState>(() => {
-    const saved = localStorage.getItem('aiveno_state');
-    return saved ? JSON.parse(saved) : {
+    try {
+      const saved = localStorage.getItem('aiveno_state');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to load local storage state:", e);
+    }
+    return {
       reminders: [],
       expenses: [],
       documents: [],
@@ -138,7 +130,7 @@ const App: React.FC = () => {
   });
 
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([
-    { role: 'ai', text: "Hello! I'm Aiveno, your personal assistant. How can I help you manage your day?" }
+    { role: 'ai', text: "Hello! I'm Aiveno. How can I assist you today?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -172,11 +164,6 @@ const App: React.FC = () => {
         date: new Date().toISOString()
       };
       setAppState(prev => ({ ...prev, expenses: [...prev.expenses, newExp] }));
-    } else if (name === 'update_memory') {
-      setAppState(prev => ({
-        ...prev,
-        memory: { ...prev.memory, keyFacts: [...prev.memory.keyFacts, args.fact] }
-      }));
     }
   };
 
@@ -200,26 +187,12 @@ const App: React.FC = () => {
     try {
       const reply = await aiveno.chat(userMsg, appState, handleAction);
       setChatMessages(prev => [...prev, { role: 'ai', text: reply }]);
-      setAdCooldown(prev => prev + 0.5);
+      setAdCooldown(prev => prev + 1);
     } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'ai', text: "Sorry, I had a little hiccup. Could you try again?" }]);
+      setChatMessages(prev => [...prev, { role: 'ai', text: "I'm having trouble connecting. Check your internet?" }]);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleReminder = (id: string) => {
-    setAppState(prev => ({
-      ...prev,
-      reminders: prev.reminders.map(r => r.id === id ? { ...r, completed: !r.completed } : r)
-    }));
-  };
-
-  const deleteReminder = (id: string) => {
-    setAppState(prev => ({
-      ...prev,
-      reminders: prev.reminders.filter(r => r.id !== id)
-    }));
   };
 
   return (
@@ -228,124 +201,30 @@ const App: React.FC = () => {
       
       <header className="bg-indigo-600 text-white p-4 flex justify-between items-center shrink-0 shadow-md z-10">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-inner">
+          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
             <span className="text-indigo-600 font-bold">A</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Aiveno</h1>
+          <h1 className="text-xl font-bold">Aiveno</h1>
         </div>
-        <div className="flex gap-4">
-          <button className="bg-indigo-500/50 p-1.5 rounded-lg hover:bg-indigo-500 transition-colors">
-            <Bell size={20} />
-          </button>
-        </div>
+        <Bell size={20} />
       </header>
 
       <main className="flex-1 overflow-y-auto bg-slate-50 pb-4">
         {activeTab === 'dash' && (
           <div className="p-4 space-y-6">
-            <section>
-              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-700">
-                <LayoutDashboard className="text-indigo-600" size={20} /> Today's Overview
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Spent Today</p>
-                  <p className="text-2xl font-bold text-slate-800">
-                    ₹{appState.expenses
-                      .filter(e => new Date(e.date).toDateString() === new Date().toDateString())
-                      .reduce((sum, e) => sum + e.amount, 0)}
-                  </p>
-                </div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-slate-500 text-xs font-semibold uppercase mb-1">Tasks Left</p>
-                  <p className="text-2xl font-bold text-slate-800">
-                    {appState.reminders.filter(r => !r.completed).length}
-                  </p>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white p-4 rounded-2xl shadow-sm">
+                <p className="text-slate-500 text-xs font-semibold mb-1">Spent Today</p>
+                <p className="text-2xl font-bold">₹{appState.expenses.filter(e => new Date(e.date).toDateString() === new Date().toDateString()).reduce((s, e) => s + e.amount, 0)}</p>
               </div>
-            </section>
-
-            <section>
-              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-700">
-                <Calendar className="text-indigo-600" size={20} /> Active Reminders
-              </h2>
-              <div className="space-y-3">
-                {appState.reminders.filter(r => !r.completed).length === 0 ? (
-                  <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200">
-                    <p className="text-slate-400 italic text-sm">No tasks for now. Rest up!</p>
-                  </div>
-                ) : (
-                  appState.reminders.filter(r => !r.completed).map(rem => (
-                    <div key={rem.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => toggleReminder(rem.id)} className="text-slate-200 hover:text-indigo-600">
-                          <CheckCircle2 size={26} />
-                        </button>
-                        <div>
-                          <p className="font-semibold text-slate-800">{rem.title}</p>
-                          <p className="text-xs text-slate-400">{new Date(rem.dueDate).toLocaleString()}</p>
-                        </div>
-                      </div>
-                      <button onClick={() => deleteReminder(rem.id)} className="text-slate-200 hover:text-red-400 opacity-0 group-hover:opacity-100 p-1">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))
-                )}
+              <div className="bg-white p-4 rounded-2xl shadow-sm">
+                <p className="text-slate-500 text-xs font-semibold mb-1">Tasks</p>
+                <p className="text-2xl font-bold">{appState.reminders.filter(r => !r.completed).length}</p>
               </div>
-            </section>
-          </div>
-        )}
-
-        {activeTab === 'money' && (
-          <div className="p-4 space-y-6">
-            <h2 className="text-xl font-bold flex items-center gap-2"><Wallet className="text-emerald-600" /> Expense Tracker</h2>
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 rounded-3xl text-white shadow-xl">
-              <h3 className="text-emerald-100 font-medium mb-1">Total Expenses</h3>
-              <p className="text-3xl font-bold">₹{appState.expenses.reduce((s, e) => s + e.amount, 0).toLocaleString('en-IN')}</p>
             </div>
-            <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
-              {appState.expenses.length === 0 ? (
-                <div className="p-10 text-center text-slate-400 italic">Log an expense to see your spending!</div>
-              ) : (
-                <div className="divide-y divide-slate-50">
-                  {appState.expenses.slice().reverse().map(exp => (
-                    <div key={exp.id} className="p-4 flex justify-between items-center hover:bg-slate-50">
-                      <div>
-                        <p className="font-semibold text-slate-800">{exp.description}</p>
-                        <p className="text-[10px] text-slate-400 uppercase tracking-tight">{exp.category} • {new Date(exp.date).toLocaleDateString()}</p>
-                      </div>
-                      <p className="font-bold text-slate-900">₹{exp.amount}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'docs' && (
-          <div className="p-4 space-y-6">
-            <h2 className="text-xl font-bold flex items-center gap-2"><FileText className="text-blue-600" /> Document Vault</h2>
-            <div className="grid grid-cols-1 gap-4">
-              {appState.documents.length === 0 && (
-                <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400">
-                  <FileText className="mx-auto text-slate-200 mb-2" size={48} />
-                  <p>Chat with Aiveno to track Passport or License renewals.</p>
-                </div>
-              )}
-              {appState.documents.map(doc => (
-                <div key={doc.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-blue-50 p-3 rounded-xl text-blue-600"><FileText size={20} /></div>
-                    <div>
-                      <p className="font-bold text-slate-800">{doc.name}</p>
-                      <p className="text-xs text-slate-500">Expires: {new Date(doc.expiryDate).toLocaleDateString('en-IN')}</p>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 bg-blue-50 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-widest">{doc.type}</span>
-                </div>
-              ))}
+            <div className="bg-white p-4 rounded-2xl shadow-sm">
+              <h2 className="font-bold mb-3 flex items-center gap-2"><Calendar size={18}/> Upcoming</h2>
+              {appState.reminders.filter(r => !r.completed).length === 0 ? <p className="text-slate-400 text-sm">Clear!</p> : <p className="text-sm">You have tasks waiting.</p>}
             </div>
           </div>
         )}
@@ -355,65 +234,35 @@ const App: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-4 rounded-3xl text-[13px] leading-relaxed shadow-sm ${
-                    msg.role === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-br-none' 
-                    : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none'
-                  }`}>
+                  <div className={`max-w-[85%] p-4 rounded-3xl text-[13px] ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
                     {msg.text}
                   </div>
                 </div>
               ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 rounded-bl-none flex gap-1.5 items-center">
-                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150"></div>
-                    <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-300"></div>
-                  </div>
-                </div>
-              )}
               <div ref={chatEndRef} />
             </div>
-            
-            <div className="p-4 bg-white border-t border-slate-100">
-              <div className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Tell Aiveno about your day..."
-                  className="flex-1 p-3.5 bg-slate-50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 border border-slate-100 text-sm"
-                />
-                <button 
-                  onClick={sendMessage}
-                  disabled={isLoading}
-                  className="p-3.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 disabled:opacity-50 active:scale-95"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
+            <div className="p-4 bg-white border-t flex gap-2">
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Ask Aiveno..." className="flex-1 p-3 bg-slate-50 rounded-2xl border-none outline-none text-sm"/>
+              <button onClick={sendMessage} disabled={isLoading} className="p-3 bg-indigo-600 text-white rounded-2xl"><Plus size={20}/></button>
             </div>
           </div>
         )}
       </main>
 
-      {/* Production-Ready Monetization Unit */}
       <BannerAd />
 
-      <nav className="bg-white border-t border-slate-100 flex justify-around p-3 shrink-0 shadow-2xl z-10">
-        <button onClick={() => handleTabChange('dash')} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${activeTab === 'dash' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400'}`}>
-          <LayoutDashboard size={20} /><span className="text-[9px] font-bold uppercase tracking-widest">Home</span>
+      <nav className="bg-white border-t flex justify-around p-3 shrink-0 shadow-2xl z-10">
+        <button onClick={() => handleTabChange('dash')} className={`flex flex-col items-center gap-1 ${activeTab === 'dash' ? 'text-indigo-600' : 'text-slate-400'}`}>
+          <LayoutDashboard size={20} /><span className="text-[9px] font-bold">HOME</span>
         </button>
-        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${activeTab === 'chat' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400'}`}>
-          <MessageCircle size={20} /><span className="text-[9px] font-bold uppercase tracking-widest">Chat</span>
+        <button onClick={() => handleTabChange('chat')} className={`flex flex-col items-center gap-1 ${activeTab === 'chat' ? 'text-indigo-600' : 'text-slate-400'}`}>
+          <MessageCircle size={20} /><span className="text-[9px] font-bold">CHAT</span>
         </button>
-        <button onClick={() => handleTabChange('money')} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${activeTab === 'money' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400'}`}>
-          <Wallet size={20} /><span className="text-[9px] font-bold uppercase tracking-widest">Money</span>
+        <button onClick={() => handleTabChange('money')} className={`flex flex-col items-center gap-1 ${activeTab === 'money' ? 'text-indigo-600' : 'text-slate-400'}`}>
+          <Wallet size={20} /><span className="text-[9px] font-bold">MONEY</span>
         </button>
-        <button onClick={() => handleTabChange('docs')} className={`flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all ${activeTab === 'docs' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400'}`}>
-          <FileText size={20} /><span className="text-[9px] font-bold uppercase tracking-widest">Docs</span>
+        <button onClick={() => handleTabChange('docs')} className={`flex flex-col items-center gap-1 ${activeTab === 'docs' ? 'text-indigo-600' : 'text-slate-400'}`}>
+          <FileText size={20} /><span className="text-[9px] font-bold">DOCS</span>
         </button>
       </nav>
     </div>
