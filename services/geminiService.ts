@@ -2,10 +2,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AppState, Category } from "../types.ts";
 
-// Safe access to environment variables
+// Safe access to environment variables in any environment
 const getApiKey = () => {
   try {
-    return process.env.API_KEY || "";
+    // Check for both browser-shimmmed process and standard environment
+    // @ts-ignore
+    const key = (typeof process !== 'undefined' && process.env && process.env.API_KEY) 
+      // @ts-ignore
+      ? process.env.API_KEY 
+      : "";
+    return key;
   } catch (e) {
     return "";
   }
@@ -53,7 +59,12 @@ const updateMemorySchema = {
 
 export class AivenoService {
   async chat(message: string, appState: AppState, onAction: (action: any) => void) {
-    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      return "I'm currently in 'offline mode' because my AI brain (API key) isn't connected. You can still use the tabs to manage your data manually!";
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
     const memoryContext = `
       User Name: ${appState.memory.name}
@@ -64,31 +75,36 @@ export class AivenoService {
       - Important Docs: ${JSON.stringify(appState.documents)}
     `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: message,
-      config: {
-        systemInstruction: `
-          You are Aiveno, a smart, friendly, and reliable personal life assistant for Indian users.
-          Be caring, human-like, and practical. Help with reminders, planning, goals, expenses, and documents.
-          Tone: Supportive, smart, and trustworthy.
-          Indian Context: Use INR (₹) and Indian date formats (DD/MM/YYYY) in text.
-          Current User Context: ${memoryContext}
-          
-          If the user wants to set a reminder or log an expense, use the available tools.
-        `,
-        tools: [{ functionDeclarations: [addReminderSchema, addExpenseSchema, updateMemorySchema] }]
-      }
-    });
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: message,
+        config: {
+          systemInstruction: `
+            You are Aiveno, a smart, friendly, and reliable personal life assistant for Indian users.
+            Be caring, human-like, and practical. Help with reminders, planning, goals, expenses, and documents.
+            Tone: Supportive, smart, and trustworthy.
+            Indian Context: Use INR (₹) and Indian date formats (DD/MM/YYYY) in text.
+            Current User Context: ${memoryContext}
+            
+            If the user wants to set a reminder or log an expense, use the available tools.
+          `,
+          tools: [{ functionDeclarations: [addReminderSchema, addExpenseSchema, updateMemorySchema] }]
+        }
+      });
 
-    if (response.functionCalls && response.functionCalls.length > 0) {
-      for (const call of response.functionCalls) {
-        onAction(call);
+      if (response.functionCalls && response.functionCalls.length > 0) {
+        for (const call of response.functionCalls) {
+          onAction(call);
+        }
+        return "I've updated that for you! Anything else I can help with?";
       }
-      return "I've updated that for you! Anything else I can help with?";
+
+      return response.text || "I'm here to help. Could you please rephrase that?";
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      return "I'm having a bit of trouble thinking right now. Please try again in a moment.";
     }
-
-    return response.text || "I'm here to help. Could you please rephrase that?";
   }
 }
 

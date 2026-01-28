@@ -8,6 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- SHIM FOR PROCESS.ENV (Required for static hosting like GitHub Pages) -->
+    <script>
+      window.process = window.process || { env: {} };
+    </script>
+
     <!-- GOOGLE ADSENSE / ADMOB FOR WEB -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6476313491240615" crossorigin="anonymous"></script>
 
@@ -21,6 +26,16 @@
             min-height: 60px !important;
             overflow: hidden !important;
             background: #f8fafc;
+        }
+        /* Loading fallback */
+        #root:empty::before {
+            content: "Loading Aiveno...";
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: #4f46e5;
+            font-weight: 600;
         }
     </style>
 <script type="importmap">
@@ -37,5 +52,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
+    <!-- Explicitly load the entry point module -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
